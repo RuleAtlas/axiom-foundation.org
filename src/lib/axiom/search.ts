@@ -12,6 +12,7 @@ import {
 import {
   gitHubApiHeaders,
   ruleSpecRepoAppVisibility,
+  ruleSpecRepoRef,
 } from "@/lib/axiom/repo-map";
 import { parseTreeEntries, type EncodedFile } from "@/lib/axiom/rulespec/repo-listing";
 import {
@@ -852,6 +853,12 @@ async function discoverRuleSpecSearchRoots(): Promise<RuleSpecSearchRoot[]> {
   });
 }
 
+/** The ref search reads a repo at: its default branch, or the app's override for it. */
+function searchRef(repo: GitHubRepo): string {
+  const override = ruleSpecRepoRef(repo.name);
+  return override === "main" ? repo.default_branch : override;
+}
+
 async function rootsFromRepo(repo: GitHubRepo): Promise<RuleSpecSearchRoot[]> {
   // Archived repos are read-only parked lanes, never app surfaces —
   // same skip the index sync applies (scripts/lib/rulespec-discovery.mjs).
@@ -868,7 +875,7 @@ async function rootsFromRepo(repo: GitHubRepo): Promise<RuleSpecSearchRoot[]> {
   if (registered !== null && registered !== "public") return [];
   if ((await fetchAppVisibility(repo)) !== "public") return [];
   const tree = await githubJson<GitHubTreeResponse>(
-    `https://api.github.com/repos/${GITHUB_ORG}/${repo.name}/git/trees/${repo.default_branch}`
+    `https://api.github.com/repos/${GITHUB_ORG}/${repo.name}/git/trees/${searchRef(repo)}`
   ).catch(() => null);
   if (!tree) return [];
   const entries = tree.tree ?? [];
@@ -878,7 +885,7 @@ async function rootsFromRepo(repo: GitHubRepo): Promise<RuleSpecSearchRoot[]> {
   if (jurisdictionDirs.length > 0) {
     return jurisdictionDirs.map((jurisdiction) => ({
       repo: repo.name,
-      branch: repo.default_branch,
+      branch: searchRef(repo),
       jurisdiction,
       prefix: jurisdiction,
     }));
@@ -890,7 +897,7 @@ async function rootsFromRepo(repo: GitHubRepo): Promise<RuleSpecSearchRoot[]> {
       return [
         {
           repo: repo.name,
-          branch: repo.default_branch,
+          branch: searchRef(repo),
           jurisdiction,
           prefix: null,
         },
@@ -916,7 +923,7 @@ async function listEncodedFileCandidatesFromRoot(
 }
 
 async function fetchAppVisibility(repo: GitHubRepo): Promise<AppVisibility> {
-  const url = `https://raw.githubusercontent.com/${GITHUB_ORG}/${repo.name}/${repo.default_branch}/.axiom/registry.toml`;
+  const url = `https://raw.githubusercontent.com/${GITHUB_ORG}/${repo.name}/${searchRef(repo)}/.axiom/registry.toml`;
   const res = await fetch(url, {
     headers: gitHubApiHeaders(),
     next: { revalidate: REVALIDATE_SECONDS },

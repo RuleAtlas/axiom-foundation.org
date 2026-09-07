@@ -120,3 +120,25 @@ describe("the three visibility states", () => {
     ]);
   });
 });
+
+describe("ruleSpecRepoRef", () => {
+  it("reads a repo at main unless the environment names another ref for it", async () => {
+    const { ruleSpecRepoRef, ruleSpecRawFileUrl } = await import("@/lib/axiom/repo-map");
+    const previous = process.env.AXIOM_RULESPEC_REF_OVERRIDES;
+    try {
+      delete process.env.AXIOM_RULESPEC_REF_OVERRIDES;
+      expect(ruleSpecRepoRef("rulespec-il")).toBe("main");
+      process.env.AXIOM_RULESPEC_REF_OVERRIDES =
+        "rulespec-il = pilot-v0-encoder, rulespec-nz=some-branch";
+      expect(ruleSpecRepoRef("rulespec-il")).toBe("pilot-v0-encoder");
+      expect(ruleSpecRepoRef("rulespec-nz")).toBe("some-branch");
+      expect(ruleSpecRepoRef("rulespec-us")).toBe("main");
+      expect(ruleSpecRawFileUrl("il", "statutes/x.yaml")).toBe(
+        "https://raw.githubusercontent.com/TheAxiomFoundation/rulespec-il/pilot-v0-encoder/il/statutes/x.yaml"
+      );
+    } finally {
+      if (previous === undefined) delete process.env.AXIOM_RULESPEC_REF_OVERRIDES;
+      else process.env.AXIOM_RULESPEC_REF_OVERRIDES = previous;
+    }
+  });
+});

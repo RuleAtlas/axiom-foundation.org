@@ -52,6 +52,22 @@ import type { AppVisibility } from "./registry-visibility";
 
 const GITHUB_ORG = "TheAxiomFoundation";
 
+/**
+ * The git ref the app reads a rulespec repo at: ``main``, unless
+ * ``AXIOM_RULESPEC_REF_OVERRIDES`` names another for that repo
+ * (``rulespec-il=pilot-v0-encoder,rulespec-nz=some-branch``). A local
+ * or preview run can then show a branch in the real app before it
+ * lands; production leaves the variable unset.
+ */
+export function ruleSpecRepoRef(repo: string): string {
+  const overrides = process.env.AXIOM_RULESPEC_REF_OVERRIDES ?? "";
+  for (const entry of overrides.split(",")) {
+    const [name, ref] = entry.split("=").map((part) => part.trim());
+    if (name === repo && ref) return ref;
+  }
+  return "main";
+}
+
 export interface RuleSpecRepoLocation {
   /** GitHub repo name, e.g. ``rulespec-us``. */
   repo: string;
@@ -207,7 +223,7 @@ export function ruleSpecRawFileUrlForLocation(
   loc: RuleSpecRepoLocation,
   bucketRootedPath: string
 ): string {
-  return `https://raw.githubusercontent.com/${GITHUB_ORG}/${loc.repo}/main/${prefixedPath(loc, bucketRootedPath)}`;
+  return `https://raw.githubusercontent.com/${GITHUB_ORG}/${loc.repo}/${ruleSpecRepoRef(loc.repo)}/${prefixedPath(loc, bucketRootedPath)}`;
 }
 
 /**
@@ -221,7 +237,7 @@ export function ruleSpecBlobUrl(
 ): string | null {
   const loc = getRuleSpecRepoLocation(jurisdiction);
   if (!loc) return null;
-  return `https://github.com/${GITHUB_ORG}/${loc.repo}/blob/main/${prefixedPath(loc, bucketRootedPath)}`;
+  return `https://github.com/${GITHUB_ORG}/${loc.repo}/blob/${ruleSpecRepoRef(loc.repo)}/${prefixedPath(loc, bucketRootedPath)}`;
 }
 
 /**
@@ -232,9 +248,10 @@ export function ruleSpecBlobUrl(
 export function ruleSpecRepoTreeUrl(jurisdiction: string): string | null {
   const loc = getRuleSpecRepoLocation(jurisdiction);
   if (!loc) return null;
+  const ref = ruleSpecRepoRef(loc.repo);
   return loc.prefix
-    ? `https://github.com/${GITHUB_ORG}/${loc.repo}/tree/main/${loc.prefix}`
-    : `https://github.com/${GITHUB_ORG}/${loc.repo}/tree/main`;
+    ? `https://github.com/${GITHUB_ORG}/${loc.repo}/tree/${ref}/${loc.prefix}`
+    : `https://github.com/${GITHUB_ORG}/${loc.repo}/tree/${ref}`;
 }
 
 /**
@@ -252,7 +269,8 @@ export function ruleSpecRepoSubtreeApiUrl(
   // Root-layout repos (empty prefix) list the whole repo tree — they
   // hold a single jurisdiction, so the response stays small enough for
   // the fetch cache, unlike the multi-jurisdiction monorepos.
-  const ref = prefix ? `main:${prefix}` : "main";
+  const branch = ruleSpecRepoRef(repo);
+  const ref = prefix ? `${branch}:${prefix}` : branch;
   return `https://api.github.com/repos/${GITHUB_ORG}/${repo}/git/trees/${ref}?recursive=1`;
 }
 
@@ -263,7 +281,7 @@ export function ruleSpecRepoSubtreeApiUrl(
  * populated jurisdictions instead of probing every conceivable slug.
  */
 export function ruleSpecRepoRootTreeApiUrl(repo: string): string {
-  return `https://api.github.com/repos/${GITHUB_ORG}/${repo}/git/trees/main`;
+  return `https://api.github.com/repos/${GITHUB_ORG}/${repo}/git/trees/${ruleSpecRepoRef(repo)}`;
 }
 
 /**

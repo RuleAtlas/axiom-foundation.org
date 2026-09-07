@@ -58,38 +58,36 @@ describe("RULESPEC_COUNTRY_SLUGS", () => {
     }
   });
 
-  it("is not derived from the read list, so a gated country keeps its tile", () => {
+  it("is every family's slug, whatever its visibility", () => {
     // The defect this pins: RULESPEC_COUNTRY_SLUGS used to be
     // RULESPEC_REPOS.map(...), so a mapped-but-gated country was
     // missing from the country row and fell through to the anonymous
-    // "Other" chips with no pending label at all.
+    // "Other" chips with no pending label at all. Every family is
+    // public today; the gated case is covered with a synthetic family
+    // in rulespec-visibility-states.test.ts.
+    expect(RULESPEC_COUNTRY_SLUGS).toEqual(RULESPEC_FAMILIES.map((f) => f.slug));
     expect(RULESPEC_COUNTRY_SLUGS).toContain("il");
-    expect(RULESPEC_REPOS).not.toContain("rulespec-il");
-    expect(RULESPEC_COUNTRY_SLUGS.length).toBeGreaterThan(
-      RULESPEC_REPOS.length
-    );
+    expect(RULESPEC_REPOS).toContain("rulespec-il");
   });
 });
 
 describe("RULESPEC_REPOS", () => {
-  it("is the read list: public families only", () => {
-    // rulespec-il is a bounded pilot carrying
-    // app_visibility = "experimental" in its .axiom/registry.toml.
-    // discoverRoots() skips gated repos, so a RULESPEC_REPOS entry
-    // would also fail scripts/check-rulespec-drift.mjs ("listed in
-    // RULESPEC_REPOS but discovery found no encodings"). Promote the
-    // family entry here only once rulespec-il is public and populated.
+  it("is the listed set: public families only, rulespec-il included since 2026-09-07", () => {
+    // rulespec-il went public on 2026-09-07 ("similar treatment to
+    // Belgium"): its registry marker and this entry were flipped
+    // together, the two-key change scripts/check-rulespec-drift.mjs
+    // enforces.
     expect(RULESPEC_REPOS).toEqual([
       "rulespec-us",
       "rulespec-uk",
       "rulespec-be",
       "rulespec-ca",
       "rulespec-nz",
+      "rulespec-il",
     ]);
     for (const repo of RULESPEC_REPOS) {
       expect(isRuleSpecRepoInAppReadList(repo)).toBe(true);
     }
-    expect(isRuleSpecRepoInAppReadList("rulespec-il")).toBe(false);
     expect(isRuleSpecRepoInAppReadList("rulespec-nowhere")).toBe(false);
   });
 });
@@ -98,25 +96,23 @@ describe("family visibility", () => {
   it("reports the registered app_visibility for a slug and its children", () => {
     expect(ruleSpecFamilyAppVisibility("us")).toBe("public");
     expect(ruleSpecFamilyAppVisibility("us-ny")).toBe("public");
-    expect(ruleSpecFamilyAppVisibility("il")).toBe("experimental");
-    expect(ruleSpecFamilyAppVisibility("il-tlv")).toBe("experimental");
+    expect(ruleSpecFamilyAppVisibility("il")).toBe("public");
+    expect(ruleSpecFamilyAppVisibility("il-tlv")).toBe("public");
     expect(ruleSpecFamilyAppVisibility("fr")).toBeNull();
   });
 
-  it("refuses to read a gated family, and everything outside a family", () => {
+  it("reads every public family and nothing outside a family", () => {
     expect(isAppReadableJurisdiction("us")).toBe(true);
     expect(isAppReadableJurisdiction("ca")).toBe(true);
-    expect(isAppReadableJurisdiction("il")).toBe(false);
+    expect(isAppReadableJurisdiction("il")).toBe(true);
     expect(isAppReadableJurisdiction("fr")).toBe(false);
   });
 
-  it("still resolves the gated family, so the landing and drift check can place it", () => {
-    // Presentation and the drift check need "whose encodings would
-    // these be?" answered for a repo the app must not read.
+  it("resolves the Israel family", () => {
     expect(ruleSpecFamilyForJurisdiction("il")).toEqual({
       slug: "il",
       repo: "rulespec-il",
-      appVisibility: "experimental",
+      appVisibility: "public",
     });
     expect(getRuleSpecRepoForJurisdiction("il")).toBe("rulespec-il");
   });
@@ -187,19 +183,13 @@ describe("getRuleSpecRepoLocation", () => {
     });
   });
 
-  it("refuses to locate a gated family, so no URL builder can address it", () => {
-    // The defect this pins: mapping rulespec-il made every builder and
-    // reader that funnels through the location resolve a repo the app
-    // must not read, so a pilot YAML was addressable (and listable,
-    // and servable) before promotion.
-    expect(getRuleSpecRepoLocation("il")).toBeNull();
-    expect(ruleSpecRepoTreeUrl("il")).toBeNull();
-    expect(
-      ruleSpecRawFileUrl("il", "statutes/income-tax-ordinance/section-121.yaml")
-    ).toBeNull();
-    expect(
-      ruleSpecBlobUrl("il", "statutes/income-tax-ordinance/section-121.yaml")
-    ).toBeNull();
+  it("locates the Israel family like any public one", () => {
+    expect(getRuleSpecRepoLocation("il")).toEqual({ repo: "rulespec-il", prefix: "il" });
+    expect(getRuleSpecRepoLocation("il-tlv")).toEqual({
+      repo: "rulespec-il",
+      prefix: "il-tlv",
+    });
+    expect(getRuleSpecRepoLocation("fr")).toBeNull();
   });
 
   it("keeps the layout Israel will use once the pilot is promoted", () => {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   GATED_FAMILY_SLUGS,
@@ -9,6 +9,32 @@ import {
   readableJurisdictionHints,
   withoutGatedRows,
 } from "./index-visibility";
+
+
+// A synthetic gated ("xg") family: with every real family public, the
+// gate has no live instance to test against.
+vi.mock("@/lib/axiom/rulespec-families", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/rulespec-families")>();
+  return {
+    ...actual,
+    RULESPEC_FAMILIES: Object.freeze([
+      ...actual.RULESPEC_FAMILIES,
+      { slug: "xg", repo: "rulespec-xg", appVisibility: "experimental" },
+    ]),
+  };
+});
+vi.mock("@/lib/axiom/jurisdictions-seed", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/jurisdictions-seed")>();
+  return {
+    ...actual,
+    JURISDICTIONS_SEED: [
+      ...actual.JURISDICTIONS_SEED,
+      { slug: "xg", label: "Xgated", hasCitationPaths: true },
+    ],
+  };
+});
 
 /** Minimal chainable stand-in for the PostgREST builder's ``not``. */
 function notSpy() {
@@ -27,12 +53,12 @@ describe("registered-visibility gate for the encodings index", () => {
     // Today that is Israel's pilot. The assertion is on the *shape* —
     // a family flipped to public must drop out of here without anyone
     // editing this test's expectations by hand.
-    expect([...GATED_FAMILY_SLUGS]).toEqual(["il"]);
+    expect([...GATED_FAMILY_SLUGS]).toEqual(["xg"]);
   });
 
   it("gates a pilot family and its sub-jurisdictions", () => {
-    expect(isGatedJurisdiction("il")).toBe(true);
-    expect(isGatedJurisdiction("il-tlv")).toBe(true);
+    expect(isGatedJurisdiction("xg")).toBe(true);
+    expect(isGatedJurisdiction("xg-tlv")).toBe(true);
   });
 
   it("does not gate a public family, an unknown slug, or an empty one", () => {
@@ -53,12 +79,12 @@ describe("registered-visibility gate for the encodings index", () => {
 
   it("reads the jurisdiction out of a citation path", () => {
     expect(jurisdictionOfCitationPath("us/statute/26/32")).toBe("us");
-    expect(jurisdictionOfCitationPath("il")).toBe("il");
+    expect(jurisdictionOfCitationPath("xg")).toBe("xg");
     expect(jurisdictionOfCitationPath("")).toBeNull();
     // A leading slash yields an empty first segment, not a jurisdiction.
     expect(jurisdictionOfCitationPath("/statute/26/32")).toBeNull();
     expect(jurisdictionOfCitationPath(null)).toBeNull();
-    expect(isGatedCitationPath("il/statute/income-tax-ordinance/section-121"))
+    expect(isGatedCitationPath("xg/statute/income-tax-ordinance/section-121"))
       .toBe(true);
     expect(isGatedCitationPath("us/statute/26/32")).toBe(false);
     expect(isGatedCitationPath(null)).toBe(false);
@@ -67,7 +93,7 @@ describe("registered-visibility gate for the encodings index", () => {
   it("drops gated rows and keeps the rest", () => {
     const rows = [
       { citation_path: "us/statute/26/32" },
-      { citation_path: "il/statute/income-tax-ordinance/section-121" },
+      { citation_path: "xg/statute/income-tax-ordinance/section-121" },
       { citation_path: "us-il/statute/35/200" },
       { citation_path: null },
     ];
@@ -80,11 +106,11 @@ describe("registered-visibility gate for the encodings index", () => {
 
   it("narrows jurisdiction hints, and reports when nothing readable is left", () => {
     expect(readableJurisdictionHints([])).toEqual([]);
-    expect(readableJurisdictionHints(["us", "il"])).toEqual(["us"]);
+    expect(readableJurisdictionHints(["us", "xg"])).toEqual(["us"]);
     // Every hint gated → null, so the caller answers empty instead of
     // dropping the filter and querying every jurisdiction.
-    expect(readableJurisdictionHints(["il"])).toBeNull();
-    expect(readableJurisdictionHints(new Set(["il", "il-tlv"]))).toBeNull();
+    expect(readableJurisdictionHints(["xg"])).toBeNull();
+    expect(readableJurisdictionHints(new Set(["xg", "xg-tlv"]))).toBeNull();
   });
 
   it("excludes gated families in the query, on the citation path", () => {
@@ -94,8 +120,8 @@ describe("registered-visibility gate for the encodings index", () => {
     // the never-null conflict key rather than the nullable
     // ``jurisdiction`` column (a not.-predicate would drop nulls too).
     expect(calls).toEqual([
-      ["citation_path", "like", "il/%"],
-      ["citation_path", "like", "il-%"],
+      ["citation_path", "like", "xg/%"],
+      ["citation_path", "like", "xg-%"],
     ]);
   });
 
@@ -103,8 +129,8 @@ describe("registered-visibility gate for the encodings index", () => {
     const { builder, calls } = notSpy();
     excludeGatedRows(builder, "module_citation_path");
     expect(calls).toEqual([
-      ["module_citation_path", "like", "il/%"],
-      ["module_citation_path", "like", "il-%"],
+      ["module_citation_path", "like", "xg/%"],
+      ["module_citation_path", "like", "xg-%"],
     ]);
   });
 });

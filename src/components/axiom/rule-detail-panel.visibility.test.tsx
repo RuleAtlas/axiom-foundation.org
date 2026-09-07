@@ -51,6 +51,32 @@ import { _resetRawFetchCache } from "@/lib/axiom/rulespec/raw-cache";
 import type { ViewerDocument } from "@/lib/axiom-utils";
 import type { Rule } from "@/lib/supabase";
 
+
+// A synthetic gated ("xg") family: with every real family public, the
+// gate has no live instance to test against.
+vi.mock("@/lib/axiom/rulespec-families", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/rulespec-families")>();
+  return {
+    ...actual,
+    RULESPEC_FAMILIES: Object.freeze([
+      ...actual.RULESPEC_FAMILIES,
+      { slug: "xg", repo: "rulespec-xg", appVisibility: "experimental" },
+    ]),
+  };
+});
+vi.mock("@/lib/axiom/jurisdictions-seed", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/jurisdictions-seed")>();
+  return {
+    ...actual,
+    JURISDICTIONS_SEED: [
+      ...actual.JURISDICTIONS_SEED,
+      { slug: "xg", label: "Xgated", hasCitationPaths: true },
+    ],
+  };
+});
+
 const ISRAEL_RULE_NAME = "il_income_tax_pilot_rate";
 const ISRAEL_YAML = `format: rulespec/v1
 module:
@@ -180,22 +206,22 @@ describe("RuleDetailPanel encoding visibility", () => {
 
   it("renders no pilot YAML for a gated family, even with a populated run row", async () => {
     mockPopulatedEncoding({
-      citation_path: "il/statute/income-tax-ordinance/section-121",
-      jurisdiction: "il",
+      citation_path: "xg/statute/income-tax-ordinance/section-121",
+      jurisdiction: "xg",
       content: ISRAEL_YAML,
     });
 
     const { container } = render(
       <RuleDetailPanel
         document={makeDoc({
-          jurisdiction: "il",
+          jurisdiction: "xg",
           citation: "פקודת מס הכנסה 121",
           title: "שיעורי המס ליחיד",
         })}
         rule={makeRule({
           id: "rule-il",
-          jurisdiction: "il",
-          citation_path: "il/statute/income-tax-ordinance/section-121",
+          jurisdiction: "xg",
+          citation_path: "xg/statute/income-tax-ordinance/section-121",
           source_path: "statute/income-tax-ordinance/section-121",
         })}
       />
@@ -225,7 +251,7 @@ describe("RuleDetailPanel encoding visibility", () => {
                 data: [
                   {
                     id: "enc-il-synth",
-                    citation: "il/statute/income-tax-ordinance/section-121",
+                    citation: "xg/statute/income-tax-ordinance/section-121",
                     session_id: null,
                     file_path: "statutes/income-tax-ordinance/section-121.yaml",
                     rulespec_content: ISRAEL_YAML,
@@ -241,11 +267,11 @@ describe("RuleDetailPanel encoding visibility", () => {
 
     const { container } = render(
       <RuleDetailPanel
-        document={makeDoc({ jurisdiction: "il", citation: "ITO 121" })}
+        document={makeDoc({ jurisdiction: "xg", citation: "ITO 121" })}
         rule={makeRule({
-          id: "github:il/statute/income-tax-ordinance/section-121",
-          jurisdiction: "il",
-          citation_path: "il/statute/income-tax-ordinance/section-121",
+          id: "github:xg/statute/income-tax-ordinance/section-121",
+          jurisdiction: "xg",
+          citation_path: "xg/statute/income-tax-ordinance/section-121",
         })}
       />
     );

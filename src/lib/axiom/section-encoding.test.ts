@@ -24,6 +24,32 @@ vi.mock("@/lib/axiom/rulespec/repo-listing", () => ({
 import { getSectionEncoding } from "./section-encoding";
 import { parseRuleSpec } from "@/lib/axiom/rulespec/doc";
 
+
+// A synthetic gated ("xg") family: with every real family public, the
+// gate has no live instance to test against.
+vi.mock("@/lib/axiom/rulespec-families", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/rulespec-families")>();
+  return {
+    ...actual,
+    RULESPEC_FAMILIES: Object.freeze([
+      ...actual.RULESPEC_FAMILIES,
+      { slug: "xg", repo: "rulespec-xg", appVisibility: "experimental" },
+    ]),
+  };
+});
+vi.mock("@/lib/axiom/jurisdictions-seed", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/jurisdictions-seed")>();
+  return {
+    ...actual,
+    JURISDICTIONS_SEED: [
+      ...actual.JURISDICTIONS_SEED,
+      { slug: "xg", label: "Xgated", hasCitationPaths: true },
+    ],
+  };
+});
+
 function ruleYaml(name: string, source: string): string {
   return [
     "format: rulespec/v1",
@@ -494,12 +520,12 @@ describe("getSectionEncoding", () => {
       {
         kind: "ruleCitations",
         method: "not",
-        args: ["module_citation_path", "like", "il/%"],
+        args: ["module_citation_path", "like", "xg/%"],
       },
       {
         kind: "ruleCitations",
         method: "not",
-        args: ["module_citation_path", "like", "il-%"],
+        args: ["module_citation_path", "like", "xg-%"],
       },
       {
         kind: "ruleCitations",
@@ -971,13 +997,13 @@ describe("registered app_visibility gate", () => {
     configureMirror();
   });
 
-  const ISRAEL_SECTION = "il/statute/income-tax-ordinance/section-121";
+  const ISRAEL_SECTION = "xg/statute/income-tax-ordinance/section-121";
 
   it("serves nothing for a gated family, even with a populated mirror row", async () => {
     // The defect this pins: the mirror is a second store for the same
     // encodings the GitHub readers already refuse, and it had no
     // visibility gate at all — so a leaked or pre-gating row served
-    // rulespec-il's YAML through the reader.
+    // rulespec-xg's YAML through the reader.
     mirrorRows([
       {
         citation_path: ISRAEL_SECTION,
@@ -1045,12 +1071,12 @@ describe("registered app_visibility gate", () => {
       {
         kind: "ruleCitations",
         method: "not",
-        args: ["module_citation_path", "like", "il/%"],
+        args: ["module_citation_path", "like", "xg/%"],
       },
       {
         kind: "ruleCitations",
         method: "not",
-        args: ["module_citation_path", "like", "il-%"],
+        args: ["module_citation_path", "like", "xg-%"],
       },
     ]);
   });

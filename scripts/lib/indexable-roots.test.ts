@@ -3,6 +3,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { indexableRoots, isAppGatedRoot } from "./indexable-roots.mjs";
 import { discoverRoots } from "./rulespec-discovery.mjs";
 
+
+// A synthetic gated ("xg") family: with every real family public, the
+// gate has no live instance to test against.
+vi.mock("@/lib/axiom/rulespec-families", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/rulespec-families")>();
+  return {
+    ...actual,
+    RULESPEC_FAMILIES: Object.freeze([
+      ...actual.RULESPEC_FAMILIES,
+      { slug: "xg", repo: "rulespec-xg", appVisibility: "experimental" },
+    ]),
+  };
+});
+vi.mock("@/lib/axiom/jurisdictions-seed", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/jurisdictions-seed")>();
+  return {
+    ...actual,
+    JURISDICTIONS_SEED: [
+      ...actual.JURISDICTIONS_SEED,
+      { slug: "xg", label: "Xgated", hasCitationPaths: true },
+    ],
+  };
+});
+
 const ORG_REPOS =
   "https://api.github.com/orgs/TheAxiomFoundation/repos?per_page=100&type=all&sort=pushed";
 
@@ -20,12 +46,12 @@ function json(body: unknown) {
 
 const REPOS = [
   { name: "rulespec-us", default_branch: "main", archived: false },
-  { name: "rulespec-il", default_branch: "main", archived: false },
+  { name: "rulespec-xg", default_branch: "main", archived: false },
 ];
 
 const TREES: Record<string, unknown> = {
   "rulespec-us": { tree: [{ path: "us", type: "tree" }] },
-  "rulespec-il": { tree: [{ path: "il", type: "tree" }] },
+  "rulespec-xg": { tree: [{ path: "xg", type: "tree" }] },
 };
 
 /**
@@ -41,7 +67,7 @@ function stubGitHub(markerFailure: "reject" | "http-500" | "none") {
       if (markerFailure === "http-500") {
         return { ok: false, status: 500, text: async () => "" };
       }
-      const gated = url === registryUrl("rulespec-il");
+      const gated = url === registryUrl("rulespec-xg");
       return {
         ok: true,
         status: 200,
@@ -69,12 +95,12 @@ describe("index-sync visibility gate", () => {
   });
 
   it("gates a root by repo and by family", () => {
-    expect(isAppGatedRoot({ repo: "rulespec-il", jurisdiction: "il" })).toBe(
+    expect(isAppGatedRoot({ repo: "rulespec-xg", jurisdiction: "xg" })).toBe(
       true
     );
     // A gated family's directory appearing inside some other repo is
     // caught by the family half of the check.
-    expect(isAppGatedRoot({ repo: "rulespec-us", jurisdiction: "il" })).toBe(
+    expect(isAppGatedRoot({ repo: "rulespec-us", jurisdiction: "xg" })).toBe(
       true
     );
     expect(isAppGatedRoot({ repo: "rulespec-us", jurisdiction: "us" })).toBe(
@@ -96,23 +122,23 @@ describe("index-sync visibility gate", () => {
     const kept = indexableRoots(
       [
         { repo: "rulespec-us", jurisdiction: "us", prefix: "us" },
-        { repo: "rulespec-il", jurisdiction: "il", prefix: "il" },
+        { repo: "rulespec-xg", jurisdiction: "xg", prefix: "xg" },
       ],
       (root) => skipped.push(root)
     );
 
     expect(kept.map((root) => root.jurisdiction)).toEqual(["us"]);
-    expect(skipped.map((root) => root.repo)).toEqual(["rulespec-il"]);
+    expect(skipped.map((root) => root.repo)).toEqual(["rulespec-xg"]);
   });
 
   it("survives a caller that passes no skip callback", () => {
     expect(
-      indexableRoots([{ repo: "rulespec-il", jurisdiction: "il" }])
+      indexableRoots([{ repo: "rulespec-xg", jurisdiction: "xg" }])
     ).toEqual([]);
   });
 
   for (const failure of ["reject", "http-500"] as const) {
-    it(`still refuses rulespec-il when the marker request ${failure === "reject" ? "throws" : "returns 500"}`, async () => {
+    it(`still refuses rulespec-xg when the marker request ${failure === "reject" ? "throws" : "returns 500"}`, async () => {
       // The exact hole: discoverRoots' marker check fails OPEN (a
       // GitHub hiccup must not blank a live country), so one bad
       // registry.toml read admits the gated pilot into discovery — and
@@ -123,8 +149,8 @@ describe("index-sync visibility gate", () => {
 
       const discovered = await discoverRoots();
       expect(discovered.map((root) => root.jurisdiction).sort()).toEqual([
-        "il",
         "us",
+        "xg",
       ]);
 
       expect(
@@ -137,7 +163,7 @@ describe("index-sync visibility gate", () => {
     stubGitHub("none");
 
     const discovered = await discoverRoots();
-    // Discovery already dropped rulespec-il on its own marker here.
+    // Discovery already dropped rulespec-xg on its own marker here.
     expect(discovered.map((root) => root.jurisdiction)).toEqual(["us"]);
     expect(indexableRoots(discovered).map((root) => root.jurisdiction)).toEqual(
       ["us"]

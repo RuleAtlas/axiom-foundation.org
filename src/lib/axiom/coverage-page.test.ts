@@ -13,6 +13,32 @@ vi.mock("@/lib/supabase", () => ({
 
 import { getCoverageData, _resetCoverageCache } from "./coverage-page";
 
+
+// A synthetic gated ("xg") family: with every real family public, the
+// gate has no live instance to test against.
+vi.mock("@/lib/axiom/rulespec-families", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/rulespec-families")>();
+  return {
+    ...actual,
+    RULESPEC_FAMILIES: Object.freeze([
+      ...actual.RULESPEC_FAMILIES,
+      { slug: "xg", repo: "rulespec-xg", appVisibility: "experimental" },
+    ]),
+  };
+});
+vi.mock("@/lib/axiom/jurisdictions-seed", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/jurisdictions-seed")>();
+  return {
+    ...actual,
+    JURISDICTIONS_SEED: [
+      ...actual.JURISDICTIONS_SEED,
+      { slug: "xg", label: "Xgated", hasCitationPaths: true },
+    ],
+  };
+});
+
 /** Thenable builder chain: every method returns the chain; awaiting
  *  yields the result queued for that call of from(). */
 function chainFor(
@@ -147,8 +173,8 @@ describe("getCoverageData", () => {
       () => ({
         data: [
           { jurisdiction: "us" },
-          { jurisdiction: "il" },
-          { jurisdiction: "il-tlv" },
+          { jurisdiction: "xg" },
+          { jurisdiction: "xg-tlv" },
         ],
         error: null,
       }),
@@ -161,8 +187,8 @@ describe("getCoverageData", () => {
     expect(data?.totals.encodingFiles).toBe(1);
     // Excluded in the query as well, so the sweep's page bound is spent
     // on rows the census may actually count.
-    expect(notCalls).toContainEqual(["citation_path", "like", "il/%"]);
-    expect(notCalls).toContainEqual(["citation_path", "like", "il-%"]);
+    expect(notCalls).toContainEqual(["citation_path", "like", "xg/%"]);
+    expect(notCalls).toContainEqual(["citation_path", "like", "xg-%"]);
   });
 
   it("tolerates an encodings mirror outage", async () => {

@@ -7,6 +7,32 @@ import {
 } from "./visibility";
 import { _resetRawFetchCache } from "./raw-cache";
 
+
+// A synthetic gated ("xg") family: with every real family public, the
+// gate has no live instance to test against.
+vi.mock("@/lib/axiom/rulespec-families", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/rulespec-families")>();
+  return {
+    ...actual,
+    RULESPEC_FAMILIES: Object.freeze([
+      ...actual.RULESPEC_FAMILIES,
+      { slug: "xg", repo: "rulespec-xg", appVisibility: "experimental" },
+    ]),
+  };
+});
+vi.mock("@/lib/axiom/jurisdictions-seed", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/jurisdictions-seed")>();
+  return {
+    ...actual,
+    JURISDICTIONS_SEED: [
+      ...actual.JURISDICTIONS_SEED,
+      { slug: "xg", label: "Xgated", hasCitationPaths: true },
+    ],
+  };
+});
+
 const REGISTRY = (repo: string) =>
   `https://raw.githubusercontent.com/TheAxiomFoundation/${repo}/main/.axiom/registry.toml`;
 
@@ -72,8 +98,8 @@ describe("isRuleSpecRepoReadable", () => {
   it("refuses a repo off the read list without asking GitHub", async () => {
     // The registered gate fails CLOSED: no network call can open a
     // pilot repo, so a rate limit or an outage cannot leak it.
-    const fetchMock = stubRegistry({ "rulespec-il": "[registry]\n" });
-    expect(await isRuleSpecRepoReadable("rulespec-il")).toBe(false);
+    const fetchMock = stubRegistry({ "rulespec-xg": "[registry]\n" });
+    expect(await isRuleSpecRepoReadable("rulespec-xg")).toBe(false);
     expect(await isRuleSpecRepoReadable("rulespec-nowhere")).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -116,8 +142,8 @@ describe("ruleSpecReadLocation", () => {
 
   it("returns null for a gated family, with no GitHub call at all", async () => {
     const fetchMock = stubRegistry({});
-    expect(await ruleSpecReadLocation("il")).toBeNull();
-    expect(await ruleSpecReadLocation("il-tlv")).toBeNull();
+    expect(await ruleSpecReadLocation("xg")).toBeNull();
+    expect(await ruleSpecReadLocation("xg-tlv")).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

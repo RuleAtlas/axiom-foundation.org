@@ -1,3 +1,29 @@
+
+
+// A synthetic gated ("xg") family: with every real family public, the
+// gate has no live instance to test against.
+vi.mock("@/lib/axiom/rulespec-families", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/rulespec-families")>();
+  return {
+    ...actual,
+    RULESPEC_FAMILIES: Object.freeze([
+      ...actual.RULESPEC_FAMILIES,
+      { slug: "xg", repo: "rulespec-xg", appVisibility: "experimental" },
+    ]),
+  };
+});
+vi.mock("@/lib/axiom/jurisdictions-seed", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/jurisdictions-seed")>();
+  return {
+    ...actual,
+    JURISDICTIONS_SEED: [
+      ...actual.JURISDICTIONS_SEED,
+      { slug: "xg", label: "Xgated", hasCitationPaths: true },
+    ],
+  };
+});
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // Use vi.hoisted to create mock functions that are available during vi.mock hoisting
@@ -818,7 +844,7 @@ describe('supabase lib', () => {
     })
 
     it('refuses the GitHub fallback for a repo the app must not read', async () => {
-      // rulespec-il is mapped (Israel gets a pending landing tile) but
+      // rulespec-xg is mapped (Israel gets a pending landing tile) but
       // gated app_visibility = "experimental". The rule-detail rail
       // must not serve its pilot YAML before promotion, so the
       // fallback fetcher never leaves the process.
@@ -836,7 +862,7 @@ describe('supabase lib', () => {
       vi.stubGlobal('fetch', fetchMock)
 
       const result = await getRuleEncoding(
-        'github:il/statute/income-tax-ordinance/section-121'
+        'github:xg/statute/income-tax-ordinance/section-121'
       )
       expect(result).toBeNull()
       expect(fetchMock).not.toHaveBeenCalled()
@@ -921,7 +947,7 @@ describe('supabase lib', () => {
     /** A populated pilot run row — content, not telemetry. */
     const ISRAEL_RUN_ROW = {
       id: 'enc-il',
-      citation: 'il/statute/income-tax-ordinance/section-121',
+      citation: 'xg/statute/income-tax-ordinance/section-121',
       session_id: 'sess-il',
       file_path: 'statutes/income-tax-ordinance/section-121.yaml',
       rulespec_content: 'format: rulespec/v1\nmodule:\n  name: il.pilot\n',
@@ -964,8 +990,8 @@ describe('supabase lib', () => {
       const fetchMock = vi.fn()
       vi.stubGlobal('fetch', fetchMock)
       const tables = mockPopulatedRun({
-        citation_path: 'il/statute/income-tax-ordinance/section-121',
-        jurisdiction: 'il',
+        citation_path: 'xg/statute/income-tax-ordinance/section-121',
+        jurisdiction: 'xg',
       })
 
       const result = await getRuleEncoding('rule-il')
@@ -988,7 +1014,7 @@ describe('supabase lib', () => {
       })
 
       const result = await getRuleEncoding(
-        'github:il/statute/income-tax-ordinance/section-121'
+        'github:xg/statute/income-tax-ordinance/section-121'
       )
 
       expect(result).toBeNull()
@@ -1006,7 +1032,7 @@ describe('supabase lib', () => {
 
       // ``il-tlv`` has no family entry of its own; it inherits the
       // Israel family's experimental marker.
-      const result = await getRuleEncoding('github:il-tlv/statute/arnona/section-1')
+      const result = await getRuleEncoding('github:xg-tlv/statute/arnona/section-1')
       expect(result).toBeNull()
       expect(tables).toEqual([])
     })
@@ -1016,7 +1042,7 @@ describe('supabase lib', () => {
       // what every candidate below is built from. Disagreement fails
       // closed on either side.
       const tables = mockPopulatedRun({
-        citation_path: 'il/statute/income-tax-ordinance/section-121',
+        citation_path: 'xg/statute/income-tax-ordinance/section-121',
         jurisdiction: 'us',
       })
 
@@ -1027,7 +1053,7 @@ describe('supabase lib', () => {
     it('refuses a row whose jurisdiction column is gated even when its citation path is not', async () => {
       const tables = mockPopulatedRun({
         citation_path: 'us/statute/26/1',
-        jurisdiction: 'il',
+        jurisdiction: 'xg',
       })
 
       expect(await getRuleEncoding('rule-mislabelled-2')).toBeNull()
@@ -1443,13 +1469,13 @@ describe('supabase lib', () => {
 
       const result = await getAxiomStats()
 
-      expect(countedJurisdictions).not.toContain('il')
+      expect(countedJurisdictions).not.toContain('xg')
       // Illinois is a US state, not Israel — it must still be counted.
       expect(countedJurisdictions).toContain('us-il')
       expect(
-        result?.jurisdictions?.some((j) => j.jurisdiction === 'il')
+        result?.jurisdictions?.some((j) => j.jurisdiction === 'xg')
       ).toBe(false)
-      expect(mockListEncodedFiles).not.toHaveBeenCalledWith('il')
+      expect(mockListEncodedFiles).not.toHaveBeenCalledWith('xg')
     })
 
     it('keeps Belgium counts from the bootstrap seed when GitHub RuleSpec listing is unavailable', async () => {

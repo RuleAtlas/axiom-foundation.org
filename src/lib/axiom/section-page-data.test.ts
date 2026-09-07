@@ -60,6 +60,32 @@ import {
   rulespecSourceCitationPath,
 } from "./section-page";
 
+
+// A synthetic gated ("xg") family: with every real family public, the
+// gate has no live instance to test against.
+vi.mock("@/lib/axiom/rulespec-families", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/rulespec-families")>();
+  return {
+    ...actual,
+    RULESPEC_FAMILIES: Object.freeze([
+      ...actual.RULESPEC_FAMILIES,
+      { slug: "xg", repo: "rulespec-xg", appVisibility: "experimental" },
+    ]),
+  };
+});
+vi.mock("@/lib/axiom/jurisdictions-seed", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/jurisdictions-seed")>();
+  return {
+    ...actual,
+    JURISDICTIONS_SEED: [
+      ...actual.JURISDICTIONS_SEED,
+      { slug: "xg", label: "Xgated", hasCitationPaths: true },
+    ],
+  };
+});
+
 /** Chainable query stub: every builder method returns the chain, the
  *  chain is thenable, and maybeSingle resolves the same result. */
 function chain(result: { data: unknown; error: unknown }) {
@@ -672,7 +698,7 @@ describe("rulespecSourceCitationPath", () => {
         data: [
           {
             raw_yaml:
-              "module:\n  source_verification:\n    corpus_citation_path: il/statute/income-tax-ordinance/section-121\n",
+              "module:\n  source_verification:\n    corpus_citation_path: xg/statute/income-tax-ordinance/section-121\n",
           },
         ],
         error: null,
@@ -680,7 +706,7 @@ describe("rulespecSourceCitationPath", () => {
     );
 
     expect(
-      await rulespecSourceCitationPath("il", [
+      await rulespecSourceCitationPath("xg", [
         "statute",
         "income-tax-ordinance",
         "section-121",

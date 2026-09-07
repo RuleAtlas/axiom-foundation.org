@@ -3,14 +3,14 @@ import { describe, it, expect, vi } from "vitest";
 
 /**
  * Rendered-landing guard for a country the repo map knows but the
- * encoding read list excludes (today: Israel, whose ``rulespec-il``
+ * encoding read list excludes (today: Xgated, whose ``rulespec-xg``
  * pilot carries ``app_visibility = "experimental"``).
  *
  * Deliberately uses the REAL jurisdictions seed, the REAL landing
  * filter, and the REAL repo map — the defect this pins was invisible
  * to seed-level tests. ``RULESPEC_COUNTRY_SLUGS`` was derived from the
- * read list, so Israel never reached the country row: it rendered as a
- * disabled, unlabelled "IL Israel" chip in the anonymous "Other"
+ * read list, so Xgated never reached the country row: it rendered as a
+ * disabled, unlabelled "IL Xgated" chip in the anonymous "Other"
  * section, with no pending text and no tooltip.
  */
 const { getAxiomStatsMock } = vi.hoisted(() => ({
@@ -40,8 +40,36 @@ vi.mock("next/link", () => ({
 
 import { AxiomStats } from "./axiom-stats";
 
+
+// Synthetic gated ("xg") and unlisted ("xu") families: with every real
+// family public, the gates have no live instance to test against.
+vi.mock("@/lib/axiom/rulespec-families", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/rulespec-families")>();
+  return {
+    ...actual,
+    RULESPEC_FAMILIES: Object.freeze([
+      ...actual.RULESPEC_FAMILIES,
+      { slug: "xg", repo: "rulespec-xg", appVisibility: "experimental" },
+      { slug: "xu", repo: "rulespec-xu", appVisibility: "unlisted" },
+    ]),
+  };
+});
+vi.mock("@/lib/axiom/jurisdictions-seed", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/jurisdictions-seed")>();
+  return {
+    ...actual,
+    JURISDICTIONS_SEED: [
+      ...actual.JURISDICTIONS_SEED,
+      { slug: "xg", label: "Xgated", hasCitationPaths: true },
+      { slug: "xu", label: "Xunlisted", hasCitationPaths: true },
+    ],
+  };
+});
+
 /**
- * Populated US stats and no Israel rows — the state the landing is
+ * Populated US stats and no Xgated rows — the state the landing is
  * actually in while the pilot is encoding.
  */
 const US_STATS_NO_ISRAEL = {
@@ -57,7 +85,7 @@ const US_STATS_NO_ISRAEL = {
 };
 
 const PILOT_TOOLTIP =
-  "Israel — pilot encoding in progress, not yet published to the app";
+  "Xgated — pilot encoding in progress, not yet published to the app";
 
 function renderLanding() {
   render(<AxiomStats initialStats={US_STATS_NO_ISRAEL} />);
@@ -65,10 +93,10 @@ function renderLanding() {
 }
 
 /** Assert the whole pilot presentation on an already-rendered landing. */
-function expectIsraelPresentedAsPilot(
+function expectXgatedPresentedAsPilot(
   pills: ReturnType<typeof within>
 ): void {
-  const israel = pills.getByRole("tab", { name: /Israel/i });
+  const israel = pills.getByRole("tab", { name: /Xgated/i });
   expect(israel).toHaveTextContent("pilot · pending");
   expect(israel).toHaveAttribute("title", PILOT_TOOLTIP);
 
@@ -76,7 +104,7 @@ function expectIsraelPresentedAsPilot(
 
   expect(
     pills.getByText(
-      /Israel is a pilot encoding in progress — nothing is published to the app yet\./
+      /Xgated is a pilot encoding in progress — nothing is published to the app yet\./
     )
   ).toBeInTheDocument();
   // The country's own corpus card is a disabled div, not a link.
@@ -84,18 +112,18 @@ function expectIsraelPresentedAsPilot(
     .getAllByTitle(PILOT_TOOLTIP)
     .find((el) => el.getAttribute("aria-disabled") === "true");
   expect(card).toBeDefined();
-  expect(pills.queryByRole("link", { name: /Israel/i })).toBeNull();
+  expect(pills.queryByRole("link", { name: /Xgated/i })).toBeNull();
   expect(
     pills.queryAllByRole("link").map((link) => link.getAttribute("href"))
   ).not.toContain("/il");
 }
 
 describe("landing presentation for a country outside the read list", () => {
-  it("renders Israel as a country tab marked pending, not an Other chip", () => {
+  it("renders Xgated as a country tab marked pending, not an Other chip", () => {
     const pills = renderLanding();
 
-    const israel = pills.getByRole("tab", { name: /Israel/i });
-    expect(israel).toHaveTextContent("Israel");
+    const israel = pills.getByRole("tab", { name: /Xgated/i });
+    expect(israel).toHaveTextContent("Xgated");
     expect(israel).toHaveTextContent("pilot · pending");
     expect(israel).toHaveAttribute("title", PILOT_TOOLTIP);
 
@@ -104,7 +132,7 @@ describe("landing presentation for a country outside the read list", () => {
     expect(
       within(
         screen.getByRole("tablist", { name: /Federal & national/i })
-      ).getByRole("tab", { name: /Israel/i })
+      ).getByRole("tab", { name: /Xgated/i })
     ).toBe(israel);
     expect(screen.queryByText("Other")).not.toBeInTheDocument();
   });
@@ -126,14 +154,14 @@ describe("landing presentation for a country outside the read list", () => {
     ).toHaveAttribute("title", "United States — 625,248 rules total");
   });
 
-  it("says why Israel is empty when its tab is opened", () => {
+  it("says why Xgated is empty when its tab is opened", () => {
     const pills = renderLanding();
 
-    fireEvent.click(pills.getByRole("tab", { name: /Israel/i }));
+    fireEvent.click(pills.getByRole("tab", { name: /Xgated/i }));
 
     expect(
       pills.getByText(
-        /Israel is a pilot encoding in progress — nothing is published to the app yet\./
+        /Xgated is a pilot encoding in progress — nothing is published to the app yet\./
       )
     ).toBeInTheDocument();
     // The country's own corpus card stays non-clickable and carries
@@ -142,18 +170,18 @@ describe("landing presentation for a country outside the read list", () => {
       (el) => el.getAttribute("aria-disabled") === "true"
     );
     expect(card).toBeDefined();
-    expect(pills.queryByRole("link", { name: /Israel/i })).toBeNull();
+    expect(pills.queryByRole("link", { name: /Xgated/i })).toBeNull();
   });
 
-  it("keeps Illinois a US state chip, distinct from Israel", () => {
-    // ``il`` is Israel; ``us-il`` is Illinois. A prefix mix-up here
+  it("keeps Illinois a US state chip, distinct from Xgated", () => {
+    // ``il`` is Xgated; ``us-il`` is Illinois. A prefix mix-up here
     // would collapse the two onto one tile.
     const pills = renderLanding();
 
     const illinois = pills.getByText("Illinois");
     expect(illinois).toBeInTheDocument();
     expect(illinois.closest("[role='tab']")).toBeNull();
-    expect(pills.getByRole("tab", { name: /Israel/i })).not.toContainElement(
+    expect(pills.getByRole("tab", { name: /Xgated/i })).not.toContainElement(
       illinois
     );
   });
@@ -166,18 +194,18 @@ describe("landing presentation for a country outside the read list", () => {
  * returns; it does not throw), and the supported server timeout leaves
  * the same state — so a country's count is ``null``, which the
  * count-derived status reads as "loading" rather than "pending". That
- * turned Israel's tile back into "0 rules total" with an enabled
+ * turned Xgated's tile back into "0 rules total" with an enabled
  * ``/il`` link exactly when the site was already degraded.
  */
 describe("landing presentation for a pilot country without stats", () => {
-  it("keeps Israel pending while the stats request is still outstanding", () => {
+  it("keeps Xgated pending while the stats request is still outstanding", () => {
     // The supported server timeout: nothing ever resolves.
     getAxiomStatsMock.mockReturnValue(new Promise(() => {}));
 
     render(<AxiomStats initialStats={null} />);
     const pills = within(screen.getByTestId("axiom-stats-pills"));
 
-    expectIsraelPresentedAsPilot(pills);
+    expectXgatedPresentedAsPilot(pills);
     // Registration-derived, not a blanket fallback: a public country
     // with no count is still in its ordinary loading state.
     expect(
@@ -185,7 +213,7 @@ describe("landing presentation for a pilot country without stats", () => {
     ).not.toHaveTextContent("pilot");
   });
 
-  it("keeps Israel pending when the stats RPC comes back empty", async () => {
+  it("keeps Xgated pending when the stats RPC comes back empty", async () => {
     getAxiomStatsMock.mockResolvedValue(null);
 
     render(<AxiomStats initialStats={null} />);
@@ -193,6 +221,6 @@ describe("landing presentation for a pilot country without stats", () => {
     await act(async () => {});
     const pills = within(screen.getByTestId("axiom-stats-pills"));
 
-    expectIsraelPresentedAsPilot(pills);
+    expectXgatedPresentedAsPilot(pills);
   });
 });

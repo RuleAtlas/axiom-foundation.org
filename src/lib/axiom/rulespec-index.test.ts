@@ -8,6 +8,34 @@ vi.mock("@/lib/supabase", () => ({
 
 import { fetchIndexedRuleSpecCandidates } from "./rulespec-index";
 
+
+// Synthetic gated ("xg") and unlisted ("xu") families: with every real
+// family public, the gates have no live instance to test against.
+vi.mock("@/lib/axiom/rulespec-families", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/rulespec-families")>();
+  return {
+    ...actual,
+    RULESPEC_FAMILIES: Object.freeze([
+      ...actual.RULESPEC_FAMILIES,
+      { slug: "xg", repo: "rulespec-xg", appVisibility: "experimental" },
+      { slug: "xu", repo: "rulespec-xu", appVisibility: "unlisted" },
+    ]),
+  };
+});
+vi.mock("@/lib/axiom/jurisdictions-seed", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/jurisdictions-seed")>();
+  return {
+    ...actual,
+    JURISDICTIONS_SEED: [
+      ...actual.JURISDICTIONS_SEED,
+      { slug: "xg", label: "Xgated", hasCitationPaths: true },
+      { slug: "xu", label: "Xunlisted", hasCitationPaths: true },
+    ],
+  };
+});
+
 interface BuilderResult {
   data?: unknown;
   error?: unknown;
@@ -43,9 +71,9 @@ const ROW = {
  *  repo was gated (or whose marker read failed) would have left it. */
 const ISRAEL_ROW = {
   file_path: "statutes/income-tax-ordinance/section-121.yaml",
-  citation_path: "il/statute/income-tax-ordinance/section-121",
+  citation_path: "xg/statute/income-tax-ordinance/section-121",
   bucket: "statutes",
-  jurisdiction: "il",
+  jurisdiction: "xg",
   raw_yaml: "format: rulespec/v1\nrules:\n  - name: income_tax\n",
 };
 
@@ -118,8 +146,8 @@ describe("fetchIndexedRuleSpecCandidates", () => {
     // so an index holding nothing but gated rows still reads as empty
     // and the caller falls back instead of answering authoritatively.
     expect(probe.not.mock.calls).toEqual([
-      ["citation_path", "like", "il/%"],
-      ["citation_path", "like", "il-%"],
+      ["citation_path", "like", "xg/%"],
+      ["citation_path", "like", "xg-%"],
     ]);
 
     // No matches and the table is empty → index not synced yet.
@@ -133,8 +161,8 @@ describe("fetchIndexedRuleSpecCandidates", () => {
 
   it("refuses a populated index row for a gated pilot family", async () => {
     // The defect this pins: the index reader had no visibility gate at
-    // all, so one leaked row made rulespec-il's YAML searchable while
-    // getRuleSpecRepoLocation("il") still returned null.
+    // all, so one leaked row made rulespec-xg's YAML searchable while
+    // getRuleSpecRepoLocation("xg") still returned null.
     const builder = fakeBuilder({ data: [ISRAEL_ROW, ROW], error: null });
     mockFrom.mockReturnValue(builder);
 
@@ -148,8 +176,8 @@ describe("fetchIndexedRuleSpecCandidates", () => {
     // …and the row is excluded in the query too, so a gated pilot
     // cannot eat the candidate window and starve real results.
     expect(builder.not.mock.calls).toEqual([
-      ["citation_path", "like", "il/%"],
-      ["citation_path", "like", "il-%"],
+      ["citation_path", "like", "xg/%"],
+      ["citation_path", "like", "xg-%"],
     ]);
   });
 
@@ -158,7 +186,7 @@ describe("fetchIndexedRuleSpecCandidates", () => {
     // off to crawl GitHub for exactly the rows it must not serve.
     const result = await fetchIndexedRuleSpecCandidates(
       ["income", "tax"],
-      new Set(["il"]),
+      new Set(["xg"]),
       null
     );
 
@@ -172,7 +200,7 @@ describe("fetchIndexedRuleSpecCandidates", () => {
 
     await fetchIndexedRuleSpecCandidates(
       ["snap"],
-      new Set(["us-co", "il"]),
+      new Set(["us-co", "xg"]),
       null
     );
 

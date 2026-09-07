@@ -2,6 +2,7 @@ import { supabaseCorpus, supabaseEncodings } from "@/lib/supabase";
 import {
   excludeGatedRows,
   isGatedJurisdiction,
+  isUnlistedJurisdiction,
 } from "@/lib/axiom/rulespec/index-visibility";
 import { JURISDICTIONS_SEED } from "@/lib/axiom/jurisdictions-seed";
 
@@ -168,8 +169,10 @@ async function loadEncodingCounts(): Promise<Map<string, number> | null> {
     const rows = (data ?? []) as Array<{ jurisdiction: string | null }>;
     for (const row of rows) {
       if (!row.jurisdiction) continue;
-      // A gated pilot family is not part of the published census.
+      // A gated pilot family is not part of the published census, and an
+      // unlisted one is presented nowhere.
       if (isGatedJurisdiction(row.jurisdiction)) continue;
+      if (isUnlistedJurisdiction(row.jurisdiction)) continue;
       counts.set(row.jurisdiction, (counts.get(row.jurisdiction) ?? 0) + 1);
     }
     if (rows.length < SWEEP_PAGE_SIZE) return counts;

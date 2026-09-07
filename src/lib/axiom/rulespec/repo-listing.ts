@@ -1,6 +1,6 @@
 import {
   gitHubApiHeaders,
-  isAppReadableJurisdiction,
+  isListedJurisdiction,
   ruleSpecRawFileUrlForLocation,
   ruleSpecRepoRootJurisdiction,
   ruleSpecRepoRootTreeApiUrl,
@@ -135,7 +135,7 @@ export async function listRuleSpecJurisdictions(): Promise<string[]> {
       if (entry.type !== "tree") continue;
       if (rootJurisdiction) {
         if (RULESPEC_BUCKETS.has(entry.path)) slugs.add(rootJurisdiction);
-      } else if (isAppReadableJurisdiction(entry.path)) {
+      } else if (isListedJurisdiction(entry.path)) {
         // A gated family's directory inside a repo the app *does* read
         // is still not listable — the index must not name a
         // jurisdiction whose files it would refuse to serve.

@@ -56,6 +56,26 @@ export function isGatedJurisdiction(
 }
 
 /** The jurisdiction segment of a citation path (``us/statute/26/32`` → ``us``). */
+/**
+ * An unlisted family is read at its URL but presented nowhere: search
+ * results and listing surfaces drop its rows, read paths keep them.
+ */
+export function isUnlistedJurisdiction(
+  jurisdiction: string | null | undefined
+): boolean {
+  if (!jurisdiction) return false;
+  return ruleSpecFamilyAppVisibility(jurisdiction) === "unlisted";
+}
+
+export function withoutUnlistedRows<T>(
+  rows: readonly T[],
+  citationPathOf: (row: T) => string | null | undefined
+): T[] {
+  return rows.filter(
+    (row) => !isUnlistedJurisdiction(jurisdictionOfCitationPath(citationPathOf(row)))
+  );
+}
+
 export function jurisdictionOfCitationPath(
   citationPath: string | null | undefined
 ): string | null {

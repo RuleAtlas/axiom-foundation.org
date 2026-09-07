@@ -7,7 +7,7 @@ import {
   type AxiomStats,
 } from "@/lib/supabase";
 import { getLandingJurisdictions } from "@/lib/axiom/landing-jurisdictions";
-import { RULESPEC_COUNTRY_SLUGS } from "@/lib/axiom/repo-map";
+import { RULESPEC_PRESENTED_COUNTRY_SLUGS } from "@/lib/axiom/repo-map";
 import { JURISDICTIONS, getJurisdictionBySlug } from "@/lib/tree-data";
 import { HeroChips } from "./jurisdiction-layouts";
 
@@ -164,7 +164,7 @@ function orderForStations(
       label: config?.label ?? humanizeIdentifier(j.jurisdiction),
       count: j.count,
     };
-    if (RULESPEC_COUNTRY_SLUGS.includes(j.jurisdiction)) {
+    if (RULESPEC_PRESENTED_COUNTRY_SLUGS.includes(j.jurisdiction)) {
       federal.push(item);
     } else if (j.jurisdiction.startsWith("us-")) {
       states.push(item);

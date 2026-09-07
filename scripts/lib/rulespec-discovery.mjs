@@ -67,7 +67,11 @@ async function fetchAppVisibility(repo) {
   if (!text) return "public";
   for (const line of text.split(/\r?\n/)) {
     const match = line.match(/^\s*app_visibility\s*=\s*"([a-z]+)"\s*(?:#.*)?$/);
-    if (match) return match[1] === "experimental" ? "experimental" : "public";
+    if (match) {
+      if (match[1] === "experimental") return "experimental";
+      if (match[1] === "unlisted") return "unlisted";
+      return "public";
+    }
   }
   return "public";
 }

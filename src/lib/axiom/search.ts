@@ -29,8 +29,10 @@ import {
 import { fetchIndexedRuleSpecCandidates } from "@/lib/axiom/rulespec-index";
 import {
   isGatedJurisdiction,
+  isUnlistedJurisdiction,
   readableJurisdictionHints,
   withoutGatedRows,
+  withoutUnlistedRows,
 } from "@/lib/axiom/rulespec/index-visibility";
 
 export interface AxiomSearchOptions {
@@ -547,7 +549,11 @@ async function listEncodedFileCandidates(
     bucket
   );
   if (indexed !== null) {
-    return withoutGatedRows(indexed, (row) => row.citationPath).map((row) => ({
+    // An unlisted family is read at its URL and never surfaced by search.
+    return withoutUnlistedRows(
+      withoutGatedRows(indexed, (row) => row.citationPath),
+      (row) => row.citationPath
+    ).map((row) => ({
       filePath: row.filePath,
       citationPath: row.citationPath,
       bucket: row.bucket,
@@ -562,7 +568,9 @@ async function listEncodedFileCandidates(
       ? roots.filter((root) => readableHints.includes(root.jurisdiction))
       : roots;
   const candidateRoots = hintedRoots.filter(
-    (root) => !isGatedJurisdiction(root.jurisdiction)
+    (root) =>
+      !isGatedJurisdiction(root.jurisdiction) &&
+      !isUnlistedJurisdiction(root.jurisdiction)
   );
   return withoutGatedRows(
     dedupeEncodedFileCandidates(
@@ -854,8 +862,11 @@ async function rootsFromRepo(repo: GitHubRepo): Promise<RuleSpecSearchRoot[]> {
   // know but would leak a registered pilot the one time raw.github is
   // unreachable. Unregistered repos still discover normally, so a new
   // country needs no repo-map entry to become searchable.
-  if (ruleSpecRepoAppVisibility(repo.name) === "experimental") return [];
-  if ((await fetchAppVisibility(repo)) === "experimental") return [];
+  // Only a public repo is searchable: a gated one is read by nothing and
+  // an unlisted one is read at its URL alone.
+  const registered = ruleSpecRepoAppVisibility(repo.name);
+  if (registered !== null && registered !== "public") return [];
+  if ((await fetchAppVisibility(repo)) !== "public") return [];
   const tree = await githubJson<GitHubTreeResponse>(
     `https://api.github.com/repos/${GITHUB_ORG}/${repo.name}/git/trees/${repo.default_branch}`
   ).catch(() => null);

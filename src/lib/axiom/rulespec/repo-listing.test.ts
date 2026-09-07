@@ -10,6 +10,34 @@ import {
 } from "./repo-listing";
 import { _resetRawFetchCache } from "./raw-cache";
 
+
+// Synthetic gated ("xg") and unlisted ("xu") families: with every real
+// family public, the gates have no live instance to test against.
+vi.mock("@/lib/axiom/rulespec-families", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/rulespec-families")>();
+  return {
+    ...actual,
+    RULESPEC_FAMILIES: Object.freeze([
+      ...actual.RULESPEC_FAMILIES,
+      { slug: "xg", repo: "rulespec-xg", appVisibility: "experimental" },
+      { slug: "xu", repo: "rulespec-xu", appVisibility: "unlisted" },
+    ]),
+  };
+});
+vi.mock("@/lib/axiom/jurisdictions-seed", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/jurisdictions-seed")>();
+  return {
+    ...actual,
+    JURISDICTIONS_SEED: [
+      ...actual.JURISDICTIONS_SEED,
+      { slug: "xg", label: "Xgated", hasCitationPaths: true },
+      { slug: "xu", label: "Xunlisted", hasCitationPaths: true },
+    ],
+  };
+});
+
 describe("parseTreeEntries", () => {
   // A jurisdiction subtree (``git/trees/main:us``) — rooted at the
   // jurisdiction directory, so its paths are already bucket-rooted.
@@ -213,7 +241,7 @@ describe("listEncodedFiles", () => {
   });
 
   it("lists nothing from a mapped repo the app must not read", async () => {
-    // rulespec-il is mapped as a family (so Israel gets a pending
+    // rulespec-xg is mapped as a family (so Israel gets a pending
     // landing tile) but carries app_visibility = "experimental" in its
     // .axiom/registry.toml, and discoverRoots() skips gated repos.
     // Before the gate landed here, the same mapping made a pilot YAML
@@ -241,8 +269,8 @@ describe("listEncodedFiles", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    expect(await listEncodedFiles("il")).toEqual([]);
-    expect(await findEncodedDescendants("il/statute/income-tax-ordinance")).toEqual(
+    expect(await listEncodedFiles("xg")).toEqual([]);
+    expect(await findEncodedDescendants("xg/statute/income-tax-ordinance")).toEqual(
       []
     );
     // The registered gate is synchronous and fails closed, so the
@@ -399,7 +427,7 @@ describe("listRuleSpecJurisdictions", () => {
             ? {
                 tree: [
                   { path: "us", type: "tree" },
-                  { path: "il", type: "tree" },
+                  { path: "xg", type: "tree" },
                 ],
               }
             : { tree: [] },
@@ -508,7 +536,7 @@ describe("fetchEncodedFile", () => {
 
   it("refuses to serve a YAML from a repo the app must not read", async () => {
     // Holding an exact citation path is not a way around the gate: the
-    // pilot encoding stays unservable until rulespec-il is promoted.
+    // pilot encoding stays unservable until rulespec-xg is promoted.
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -517,7 +545,7 @@ describe("fetchEncodedFile", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     expect(
-      await fetchEncodedFile("il/statute/income-tax-ordinance/section-121")
+      await fetchEncodedFile("xg/statute/income-tax-ordinance/section-121")
     ).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
   });

@@ -90,6 +90,33 @@ rules:
   - effective_from: '2025-10-01'
     formula: max(0, shelter_costs - snap_standard_deduction)
 `);
+// Synthetic gated ("xg") and unlisted ("xu") families: with every real
+// family public, the gates have no live instance to test against.
+vi.mock("@/lib/axiom/rulespec-families", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/rulespec-families")>();
+  return {
+    ...actual,
+    RULESPEC_FAMILIES: Object.freeze([
+      ...actual.RULESPEC_FAMILIES,
+      { slug: "xg", repo: "rulespec-xg", appVisibility: "experimental" },
+      { slug: "xu", repo: "rulespec-xu", appVisibility: "unlisted" },
+    ]),
+  };
+});
+vi.mock("@/lib/axiom/jurisdictions-seed", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/axiom/jurisdictions-seed")>();
+  return {
+    ...actual,
+    JURISDICTIONS_SEED: [
+      ...actual.JURISDICTIONS_SEED,
+      { slug: "xg", label: "Xgated", hasCitationPaths: true },
+      { slug: "xu", label: "Xunlisted", hasCitationPaths: true },
+    ],
+  };
+});
+
       }
       if (url.includes("/orgs/TheAxiomFoundation/repos")) {
         return jsonResponse([
@@ -258,7 +285,7 @@ rules:
   });
 
   it("never searches a repo the app registers as a gated pilot", async () => {
-    // rulespec-il is public on GitHub and holds an il/ tree, but its
+    // rulespec-xg is public on GitHub and holds an il/ tree, but its
     // .axiom/registry.toml gates it and repo-map.ts registers that
     // gate. fetchAppVisibility fails OPEN by design, so the registered
     // check has to be the one that holds when raw.githubusercontent is
@@ -267,17 +294,17 @@ rules:
     mockFetch.mockImplementation((url: string) => {
       if (url.includes("/orgs/TheAxiomFoundation/repos")) {
         return jsonResponse([
-          { name: "rulespec-il", default_branch: "main" },
+          { name: "rulespec-xg", default_branch: "main" },
         ]);
       }
       if (url.includes("/.axiom/registry.toml")) {
         // The fail-open path: the marker cannot be read at all.
         return Promise.resolve(new Response("nope", { status: 500 }));
       }
-      if (url.endsWith("/repos/TheAxiomFoundation/rulespec-il/git/trees/main")) {
-        return jsonResponse(tree([{ path: "il", type: "tree" }]));
+      if (url.endsWith("/repos/TheAxiomFoundation/rulespec-xg/git/trees/main")) {
+        return jsonResponse(tree([{ path: "xg", type: "tree" }]));
       }
-      if (url.includes("/rulespec-il/git/trees/main:il?recursive=1")) {
+      if (url.includes("/rulespec-xg/git/trees/main:il?recursive=1")) {
         return jsonResponse(
           tree([{ path: "statutes/income-tax-ordinance/section-121.yaml" }])
         );
@@ -288,22 +315,22 @@ rules:
     expect(await searchEncodedRuleSpecs("income tax")).toEqual([]);
     expect(
       mockFetch.mock.calls.some(([url]: [string]) =>
-        String(url).includes("rulespec-il/git/trees")
+        String(url).includes("rulespec-xg/git/trees")
       )
     ).toBe(false);
   });
 
   it("never serves a gated pilot's row out of the populated search index", async () => {
     // The index is the PRIMARY search source; the GitHub crawl above is
-    // only its fallback. A row for rulespec-il — left by a sync that ran
+    // only its fallback. A row for rulespec-xg — left by a sync that ran
     // before the repo was gated, or by one whose marker read failed —
     // used to come straight back with the pilot's formula in it.
     mockFetchIndexedCandidates.mockResolvedValue([
       {
         filePath: "statutes/income-tax-ordinance/section-121.yaml",
-        citationPath: "il/statute/income-tax-ordinance/section-121",
+        citationPath: "xg/statute/income-tax-ordinance/section-121",
         bucket: "statutes",
-        jurisdiction: "il",
+        jurisdiction: "xg",
         rawYaml: [
           "format: rulespec/v1",
           "module:",
@@ -322,7 +349,7 @@ rules:
     // Scoping the search AT Israel is refused too, and without paying
     // for a GitHub crawl of the same repo.
     expect(
-      await searchEncodedRuleSpecs("income tax", { jurisdiction: "il" })
+      await searchEncodedRuleSpecs("income tax", { jurisdiction: "xg" })
     ).toEqual([]);
     expect(mockFetch).not.toHaveBeenCalled();
   });
@@ -334,9 +361,9 @@ rules:
     mockFetchIndexedCandidates.mockResolvedValue([
       {
         filePath: "statutes/income-tax-ordinance/section-121.yaml",
-        citationPath: "il/statute/income-tax-ordinance/section-121",
+        citationPath: "xg/statute/income-tax-ordinance/section-121",
         bucket: "statutes",
-        jurisdiction: "il",
+        jurisdiction: "xg",
         rawYaml: "format: rulespec/v1\nrules: []\n",
       },
       {

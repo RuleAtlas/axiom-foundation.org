@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatCompact, jurisdictionDisplay } from "./axiom-stats";
 import {
-  RULESPEC_COUNTRY_SLUGS,
+  RULESPEC_PRESENTED_COUNTRY_SLUGS,
   ruleSpecFamilyAppVisibility,
 } from "@/lib/axiom/repo-map";
 
@@ -96,7 +96,7 @@ const CHILD_PREFIX: Record<string, string> = {
   be: "be-",
 };
 
-const FEDERAL_ORDER = RULESPEC_COUNTRY_SLUGS;
+const FEDERAL_ORDER = RULESPEC_PRESENTED_COUNTRY_SLUGS;
 
 function partitionItems(items: JurisdictionItem[]) {
   const bySlug = new Map(items.map((i) => [i.slug, i]));

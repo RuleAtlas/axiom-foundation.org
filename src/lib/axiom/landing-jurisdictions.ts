@@ -1,8 +1,5 @@
 import { JURISDICTIONS_SEED } from "@/lib/axiom/jurisdictions-seed";
-import {
-  getRuleSpecRepoForJurisdiction,
-  ruleSpecFamilyAppVisibility,
-} from "@/lib/axiom/repo-map";
+import { getRuleSpecRepoForJurisdiction } from "@/lib/axiom/repo-map";
 
 export function getLandingJurisdictions(
   countedSlugs = new Set<string>()
@@ -28,13 +25,7 @@ export function getLandingJurisdictions(
  * ``getRuleSpecRepoLocation`` on the read paths.
  */
 function isCountryWithKnownRepoFamily(slug: string): boolean {
-  return (
-    !slug.includes("-") &&
-    getRuleSpecRepoForJurisdiction(slug) !== null &&
-    // An unlisted family is read at its URL and linked from nowhere,
-    // the landing included.
-    ruleSpecFamilyAppVisibility(slug) !== "unlisted"
-  );
+  return !slug.includes("-") && getRuleSpecRepoForJurisdiction(slug) !== null;
 }
 
 function isBelgiumRegionalOrCommunitySeed(slug: string): boolean {

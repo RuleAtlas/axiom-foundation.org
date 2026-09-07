@@ -29,7 +29,6 @@ import {
   getRuleSpecRepoLocation,
   gitHubApiHeaders,
   isRuleSpecRepoInAppReadList,
-  ruleSpecRepoRef,
   type RuleSpecRepoLocation,
 } from "@/lib/axiom/repo-map";
 import { parseAppVisibility } from "@/lib/axiom/registry-visibility";
@@ -41,7 +40,7 @@ const GITHUB_ORG = "TheAxiomFoundation";
 const REVALIDATE_SECONDS = 600;
 
 function registryTomlUrl(repo: string): string {
-  return `https://raw.githubusercontent.com/${GITHUB_ORG}/${repo}/${ruleSpecRepoRef(repo)}/.axiom/registry.toml`;
+  return `https://raw.githubusercontent.com/${GITHUB_ORG}/${repo}/main/.axiom/registry.toml`;
 }
 
 /**

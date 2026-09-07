@@ -9,8 +9,8 @@ vi.mock("@/lib/supabase", () => ({
 import { fetchIndexedRuleSpecCandidates } from "./rulespec-index";
 
 
-// Synthetic gated ("xg") and unlisted ("xu") families: with every real
-// family public, the gates have no live instance to test against.
+// A synthetic gated ("xg") family: with every real family public, the
+// gate has no live instance to test against.
 vi.mock("@/lib/axiom/rulespec-families", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/lib/axiom/rulespec-families")>();
@@ -19,7 +19,6 @@ vi.mock("@/lib/axiom/rulespec-families", async (importOriginal) => {
     RULESPEC_FAMILIES: Object.freeze([
       ...actual.RULESPEC_FAMILIES,
       { slug: "xg", repo: "rulespec-xg", appVisibility: "experimental" },
-      { slug: "xu", repo: "rulespec-xu", appVisibility: "unlisted" },
     ]),
   };
 });
@@ -31,7 +30,6 @@ vi.mock("@/lib/axiom/jurisdictions-seed", async (importOriginal) => {
     JURISDICTIONS_SEED: [
       ...actual.JURISDICTIONS_SEED,
       { slug: "xg", label: "Xgated", hasCitationPaths: true },
-      { slug: "xu", label: "Xunlisted", hasCitationPaths: true },
     ],
   };
 });

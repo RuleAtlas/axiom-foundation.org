@@ -3,8 +3,8 @@ import type { AppVisibility } from "@/lib/axiom/registry-visibility";
 /**
  * The country family table, in a module of its own so a test can mock
  * it (``vi.mock("@/lib/axiom/rulespec-families", ...)``) with a
- * synthetic gated or unlisted family: with every real family public,
- * the gates have no live instance to test against.
+ * synthetic gated family: with every real family public, the gate has
+ * no live instance to test against.
  */
 /**
  * One country family: the country-level slug, the repo its encodings

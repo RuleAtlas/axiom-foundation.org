@@ -53,7 +53,11 @@ function CoverageBody({ data }: { data: CoverageData }) {
         <StackHero data={data} />
       </div>
 
-      <Reveal as="section" className="mb-16">
+      {/* Reveal on first contact, not at the default 20% in view: the
+          breakdown is taller than any viewport now (200 rows), so a
+          fractional threshold can never be met and the section would
+          stay hidden. */}
+      <Reveal as="section" className="mb-16" amount={0}>
         <JurisdictionBreakdown jurisdictions={data.jurisdictions} />
       </Reveal>
     </>

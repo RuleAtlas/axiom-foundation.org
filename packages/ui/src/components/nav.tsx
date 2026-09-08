@@ -55,7 +55,6 @@ export interface NavProps {
 const DEFAULT_LINKS: NavLink[] = [
   { href: "/coverage", label: "Coverage" },
   { href: "/validation", label: "Validation" },
-  { href: "/citations", label: "Citations" },
   {
     href: "/demos",
     label: "What's possible",
@@ -97,7 +96,16 @@ const DEFAULT_LINKS: NavLink[] = [
     ],
   },
   { href: "/blog", label: "Blog" },
-  { href: "/about", label: "About" },
+  {
+    href: "/about",
+    label: "About",
+    // The parent stays a link to /about; the dropdown carries the
+    // pages that sit under the foundation rather than the product.
+    items: [
+      { href: "/about", label: "The foundation" },
+      { href: "/citations", label: "Citations" },
+    ],
+  },
   { href: "/team", label: "Team" },
 ];
 

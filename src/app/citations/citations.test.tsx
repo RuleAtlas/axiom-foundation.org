@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import CitationsPage from "./page";
@@ -30,7 +32,9 @@ const SAMPLE: Citation[] = [
     by: "Someone",
     date: "2025-11",
     href: "https://example.org/older",
-    uses: "Cites the corpus.",
+    summary: "Cites the corpus.",
+    source: "A journal",
+    image: { src: "/citations/older.jpg", width: 1200, height: 630, alt: "" },
   },
   {
     id: "newer-product",
@@ -39,7 +43,9 @@ const SAMPLE: Citation[] = [
     by: "A company",
     date: "2026-07-09",
     href: "https://example.org/newer",
-    uses: "Runs the engine.",
+    summary: "Runs the engine.",
+    source: "A company site",
+    image: { src: "/citations/newer.jpg", width: 1200, height: 630, alt: "" },
   },
   {
     id: "newer-paper",
@@ -48,16 +54,20 @@ const SAMPLE: Citation[] = [
     by: "Someone else",
     date: "2026-03",
     href: "https://example.org/newer-paper",
-    uses: "Cites the encodings.",
+    summary: "Cites the encodings.",
+    source: "Another journal",
+    image: { src: "/citations/newer-paper.jpg", width: 1200, height: 630, alt: "" },
   },
 ];
 
 describe("citations data", () => {
-  it("every curated entry links somewhere and carries a date", () => {
+  it("every curated entry links somewhere, carries a date, and ships its preview image", () => {
     for (const entry of CITATIONS) {
       expect(entry.href).toMatch(/^https:\/\//);
       expect(entry.date).toMatch(/^\d{4}-\d{2}(-\d{2})?$/);
-      expect(entry.uses.length).toBeGreaterThan(20);
+      expect(entry.summary.length).toBeGreaterThan(20);
+      expect(entry.image.src).toMatch(/^\/citations\/.+\.(jpg|png)$/);
+      expect(existsSync(join(process.cwd(), "public", entry.image.src))).toBe(true);
     }
   });
 
@@ -85,25 +95,23 @@ describe("citations data", () => {
 });
 
 describe("CitationsPage", () => {
-  it("renders the header, every curated entry with its link, and the add-yours footer", () => {
+  it("renders the header and every curated entry with its link", () => {
     render(<CitationsPage />);
     expect(
-      screen.getByRole("heading", { name: "Who builds on Axiom" })
+      screen.getByRole("heading", { name: "Who cites Axiom" })
     ).toBeInTheDocument();
     for (const entry of CITATIONS) {
       expect(screen.getByText(entry.title)).toBeInTheDocument();
-      const link = screen
-        .getByText(entry.title)
-        .closest(".citation-card")
-        ?.querySelector("a");
-      expect(link).toHaveAttribute("href", entry.href);
-      expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
+      const card = screen.getByText(entry.title).closest(".citation-card");
+      const links = card?.querySelectorAll("a") ?? [];
+      // The preview image and the "Read the piece" line both open the
+      // reference; every outbound link is rel=noopener.
+      expect(links.length).toBe(2);
+      for (const link of links) {
+        expect(link).toHaveAttribute("href", entry.href);
+        expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
+      }
+      expect(card?.querySelector("img")).toHaveAttribute("alt", entry.image.alt);
     }
-    expect(
-      screen.getByRole("link", { name: /add a citation on github/i })
-    ).toHaveAttribute(
-      "href",
-      expect.stringContaining("src/lib/citations.ts")
-    );
   });
 });

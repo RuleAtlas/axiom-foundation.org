@@ -1,56 +1,86 @@
 /**
- * Who builds on Axiom — the curated list behind /citations.
+ * Who cites Axiom — the curated list behind /citations.
  *
- * Every entry is a real, checkable reference: a paper, report,
- * product, or dataset that uses or cites Axiom's corpus, RuleSpec
- * encodings, or engine. Add one by appending to CITATIONS with the
- * link that shows the reference; the page sorts newest first and
- * groups by kind. No entry without a link — a citation we can't show
- * isn't one.
+ * Every entry is a real, checkable reference: an article, paper,
+ * report, or product that discusses or builds on Axiom. Each carries
+ * the link where the reference appears and a preview image saved
+ * under public/citations (a copy, not a hotlink — the source's card
+ * image can change or vanish). The page sorts newest first and
+ * groups by kind.
  */
 
-export type CitationKind = "product" | "paper" | "report" | "dataset";
+export type CitationKind = "article" | "paper" | "report" | "product";
 
 export interface Citation {
-  /** Stable id, used as the React key and the row anchor. */
+  /** Stable id, used as the React key. */
   id: string;
   kind: CitationKind;
+  /** The piece's own title, verbatim. */
   title: string;
-  /** Who made it — an organization or an author list. */
+  /** Who wrote or made it. */
   by: string;
-  /** ISO date of publication or first release (YYYY-MM or YYYY-MM-DD). */
+  /** The publication or venue it appears in. */
+  source: string;
+  /** ISO date of publication (YYYY-MM or YYYY-MM-DD). */
   date: string;
   /** Where the reference appears. */
   href: string;
-  /** What of Axiom's it uses, in one sentence. */
-  uses: string;
+  /** What it says about Axiom, in a sentence or two, neutral. */
+  summary: string;
+  /** Preview image, served from public/. */
+  image: { src: string; width: number; height: number; alt: string };
 }
 
 export const CITATION_KIND_LABELS: Record<CitationKind, string> = {
-  product: "Products & tools",
+  article: "Articles & newsletters",
   paper: "Papers",
   report: "Reports",
-  dataset: "Datasets",
+  product: "Products & tools",
 };
 
 /** Display order of the groups on the page. */
 export const CITATION_KIND_ORDER: CitationKind[] = [
   "paper",
   "report",
+  "article",
   "product",
-  "dataset",
 ];
 
 export const CITATIONS: Citation[] = [
   {
-    id: "policyengine-snap-payment-error-rates",
-    kind: "product",
-    title: "SNAP payment error rates and the OBBBA state cost share",
-    by: "PolicyEngine",
-    date: "2026-07",
-    href: "https://github.com/PolicyEngine/snap-payment-error-rates",
-    uses:
-      "Encodes the statutory cost-share tiers of 7 U.S.C. 2013(a)(2) in RuleSpec and executes them in the browser with Axiom's compiled rules engine, re-deriving every state's band from the encoded law.",
+    id: "markhor-2026-09-axiom-foundation",
+    kind: "article",
+    title: "Tax and Benefit Rules in the AI Era: A Look at Axiom Foundation",
+    by: "Markhor Corp.",
+    source: "markhor.jp",
+    date: "2026-09-07",
+    href: "https://markhor.jp/2026/09/07/tax-and-benefit-rules-in-the-ai-era-a-look-at-axiom-foundation/",
+    summary:
+      "A look at the foundation's launch: open, machine-readable encodings of tax and benefit rules tied back to statutes, regulations, and guidance, encoded at scale with AI and validated against external implementations and government datasets — shared infrastructure rather than a replacement for tools like OpenFisca.",
+    image: {
+      src: "/citations/markhor-axiom-foundation-2026-09.jpg",
+      width: 1200,
+      height: 618,
+      alt: "Markhor Corp. article card: Tax and Benefit Rules in the AI Era",
+    },
+  },
+  {
+    id: "things-that-caught-my-attention-s21e19",
+    kind: "article",
+    title:
+      "Artificially intelligent pragmatism; Your subjective experience is generative; The Profane Town Crier",
+    by: "Dan Hon",
+    source: "Things That Caught My Attention, s21e19",
+    date: "2026-08-12",
+    href: "https://thingsthatcaughtmyattention.com/e/s21e19-artificially-intelligent-pragmatism-your",
+    summary:
+      "Opens with the foundation's launch and its premise — every tax and benefit system re-implements the same rules, so encode them once, openly — and why the PolicyEngine and PolicyBench lineage makes that credible.",
+    image: {
+      src: "/citations/things-that-caught-my-attention-s21e19.jpg",
+      width: 1200,
+      height: 630,
+      alt: "Things That Caught My Attention, issue s21e19 card",
+    },
   },
 ];
 

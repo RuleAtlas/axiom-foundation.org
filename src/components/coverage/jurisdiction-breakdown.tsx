@@ -21,6 +21,7 @@ const COUNTRY_LABELS: Record<string, string> = {
   canada: "Canada",
   nz: "New Zealand",
   il: "Israel",
+  dk: "Denmark",
 };
 
 /** "us-co" → "us"; "canada" → "canada". */

@@ -3,7 +3,10 @@ import {
   excludeGatedRows,
   isGatedJurisdiction,
 } from "@/lib/axiom/rulespec/index-visibility";
-import { JURISDICTIONS_SEED } from "@/lib/axiom/jurisdictions-seed";
+import {
+  EXTRA_JURISDICTION_LABELS,
+  JURISDICTIONS_SEED,
+} from "@/lib/axiom/jurisdictions-seed";
 
 /**
  * Data assembly for the public /coverage page: the extent of the
@@ -66,7 +69,9 @@ export function _resetCoverageCache() {
 }
 
 function labelForSlug(slug: string): string {
-  const seeded = JURISDICTIONS_SEED.find((j) => j.slug === slug)?.label;
+  const seeded =
+    JURISDICTIONS_SEED.find((j) => j.slug === slug)?.label ??
+    EXTRA_JURISDICTION_LABELS[slug];
   if (seeded) return seeded;
   // Unseeded mirror slugs ("uk-kingston-upon-thames") — humanize
   // rather than leaking the raw slug into cards and shelves.

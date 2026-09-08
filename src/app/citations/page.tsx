@@ -23,13 +23,12 @@ export default function CitationsPage() {
         <Reveal className="mb-16 max-w-[760px]">
           <span className="kicker mb-6 inline-flex">
             <span className="kicker-mark">&sect;</span>
-            Citations &middot; In the wild
+            Citations
           </span>
           <h1 className="heading-page mb-6 mt-2">Who cites Axiom</h1>
           <p className="font-body text-[1.2rem] text-[var(--color-ink-secondary)] leading-relaxed text-pretty">
             The articles, papers, reports, and products that discuss or build
-            on the corpus, the RuleSpec encodings, or the engine. Every entry
-            links to where the reference appears.
+            on the corpus, the RuleSpec encodings, or the engine.
           </p>
         </Reveal>
 

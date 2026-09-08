@@ -110,16 +110,17 @@ describe("CoveragePage", () => {
     expect(screen.getByText("Mississippi").closest("a")).toBeNull();
     expect(screen.getByText("300 encodings")).toBeInTheDocument();
 
-    // Every jurisdiction is public, sorted by name; more than one
-    // country means the country filter row is present.
+    // Every jurisdiction is public, grouped by country with the
+    // national row first in each group; more than one country means
+    // the country filter row is present.
     const names = Array.from(
       document.querySelectorAll<HTMLElement>(".cov-rows .cov-row-name")
     ).map((el) => el.textContent);
     expect(names).toEqual([
-      "Mississippi",
-      "Oklahoma",
       "United Kingdom",
       "US Federal",
+      "Mississippi",
+      "Oklahoma",
     ]);
     expect(
       screen.getByRole("group", { name: /filter by country/i })

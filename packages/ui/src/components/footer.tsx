@@ -141,6 +141,7 @@ export function Footer({
             { href: "/demos", label: "Demos" },
             { href: "/coverage", label: "Coverage" },
             { href: "/validation", label: "Validation" },
+            { href: "/citations", label: "Citations" },
             { href: "/docs", label: "Documentation" },
           ])}
 

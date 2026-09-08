@@ -55,6 +55,7 @@ export interface NavProps {
 const DEFAULT_LINKS: NavLink[] = [
   { href: "/coverage", label: "Coverage" },
   { href: "/validation", label: "Validation" },
+  { href: "/citations", label: "Citations" },
   {
     href: "/demos",
     label: "What's possible",

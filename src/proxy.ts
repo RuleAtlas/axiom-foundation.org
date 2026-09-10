@@ -48,6 +48,21 @@ function stripAxiomPrefix(pathname: string): string {
   return pathname.startsWith("/axiom/") ? pathname.slice("/axiom".length) : pathname;
 }
 
+// The app's own routes under its /axiom mount that are not citation
+// paths: they are served at /axiom/<route> on the canonical host.
+const APP_INTERNAL_ROOT_RE = /^\/(?:encoded|search|ops)(?:\/|$)/;
+
+// The one public URL on the canonical host for a path that reached the
+// app under its old host or its /axiom mount: the root and the graph are
+// /app, a mounted citation path is the bare path, an app-internal route
+// keeps its mount, and everything else is itself.
+function canonicalSitePath(pathname: string): string {
+  const bare = isInternalAxiomPath(pathname) ? stripAxiomPrefix(pathname) : pathname;
+  if (bare === "/" || bare === "/graph" || bare === "/app") return "/app";
+  if (APP_INTERNAL_ROOT_RE.test(bare)) return `/axiom${bare}`;
+  return bare;
+}
+
 // Top-level dirs/files in ``public/`` that ship to the deploy
 // verbatim. Without an explicit bypass the app-subdomain rewrite
 // turns e.g. ``/logos/foo.svg`` into ``/axiom/logos/foo.svg``, which
@@ -81,13 +96,6 @@ function isInternalAxiomPath(pathname: string): boolean {
   return pathname === "/axiom" || pathname.startsWith("/axiom/");
 }
 
-// Marketing routes that exist only on the marketing site. The
-// app-host catch-all rewrite would otherwise serve app-root content
-// for them with HTTP 200 — the global footer links (/about, /team,
-// /privacy, /docs) silently landing on the wrong page.
-const MARKETING_PATH_RE =
-  /^\/(?:about|team|privacy|docs|format|stack|reports|preview)(?:\/|$)/;
-
 export function proxy(request: NextRequest) {
   const host = cleanHost(request);
   const { pathname } = request.nextUrl;
@@ -110,26 +118,21 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(target, 308);
   }
 
+  // app.axiom-foundation.org is the retired app host: axiom.org serves
+  // the site and the app alike, so every page request there redirects to
+  // the same resource on the canonical host. Framework, asset and
+  // analytics paths still resolve, so nothing cached on the old host
+  // breaks before the alias is removed.
   if (host === APP_HOST) {
     if (isBypassPath(pathname)) {
       return NextResponse.next();
     }
-
-    if (MARKETING_PATH_RE.test(pathname)) {
-      const target = request.nextUrl.clone();
-      target.hostname = SITE_HOST;
-      return NextResponse.redirect(target, 308);
-    }
-
-    if (isInternalAxiomPath(pathname)) {
-      const target = request.nextUrl.clone();
-      target.pathname = stripAxiomPrefix(pathname);
-      return NextResponse.redirect(target, 308);
-    }
-
     const target = request.nextUrl.clone();
-    target.pathname = appPagePath(pathname);
-    return NextResponse.rewrite(target);
+    target.protocol = "https:";
+    target.hostname = SITE_HOST;
+    target.port = "";
+    target.pathname = canonicalSitePath(pathname);
+    return NextResponse.redirect(target, 308);
   }
 
   // The site skips Next's trailing-slash normalization, but the
@@ -144,11 +147,18 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/receipt/api/", request.url), 307);
   }
 
+  // /axiom is the app's internal mount. On the canonical host a public
+  // /axiom URL for the root, the graph or a citation path redirects to
+  // its one public form (/app, or the bare citation path); the app's
+  // own routes under the mount are served in place.
   if (host === SITE_HOST && isInternalAxiomPath(pathname)) {
-    const target = request.nextUrl.clone();
-    target.hostname = APP_HOST;
-    target.pathname = stripAxiomPrefix(pathname);
-    return NextResponse.redirect(target, 308);
+    const canonical = canonicalSitePath(pathname);
+    if (canonical !== pathname) {
+      const target = request.nextUrl.clone();
+      target.pathname = canonical;
+      return NextResponse.redirect(target, 308);
+    }
+    return NextResponse.next();
   }
 
   // The two-door portal is retired — the Plane is the app. Old

@@ -17,12 +17,15 @@ describe("proxy", () => {
     expect(response.headers.get("location")).toBe("https://axiom.org/us/statute/7");
   });
 
-  it("redirects app-internal routes on the old host to their /axiom mount", () => {
+  it("redirects app routes on the old host to their canonical axiom.org form", () => {
     for (const [path, expected] of [
-      ["/encoded/il", "https://axiom.org/axiom/encoded/il"],
-      ["/search?q=credit", "https://axiom.org/axiom/search?q=credit"],
+      ["/encoded/il", "https://axiom.org/encoded/il"],
+      ["/search?q=credit", "https://axiom.org/search?q=credit"],
       ["/app?program=us-co/co-snap", "https://axiom.org/app?program=us-co/co-snap"],
       ["/graph", "https://axiom.org/app"],
+      ["/graph/?x=1", "https://axiom.org/app?x=1"],
+      ["/axiom/graph/", "https://axiom.org/app"],
+      ["/ops", "https://axiom.org/axiom/ops"],
     ] as const) {
       const response = proxy(
         request(`https://app.axiom-foundation.org${path}`, "app.axiom-foundation.org")
@@ -80,10 +83,40 @@ describe("proxy", () => {
     }
   });
 
-  it("serves the app's own routes under the /axiom mount in place", () => {
-    for (const path of ["/axiom/encoded/il", "/axiom/search?q=credit", "/axiom/ops"]) {
+  it("serves the ops dashboard under its /axiom mount in place", () => {
+    const response = proxy(request("https://axiom.org/axiom/ops", "axiom.org"));
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("routes the encoded-rules index links and search at their bare path on every host", () => {
+    // The index at /axiom/encoded links each row to /encoded/<citation>
+    // (src/app/axiom/encoded/page.tsx); those resolve like citation paths.
+    for (const [url, host, expected] of [
+      ["https://axiom.org/encoded/us/statute/26/3101/a", "axiom.org", "https://axiom.org/axiom/encoded/us/statute/26/3101/a"],
+      ["https://axiom.org/encoded/il", "axiom.org", "https://axiom.org/axiom/encoded/il"],
+      ["https://axiom.org/search?q=credit", "axiom.org", "https://axiom.org/axiom/search?q=credit"],
+      ["http://localhost:4944/encoded/il", "localhost:4944", "http://localhost:4944/axiom/encoded/il"],
+    ] as const) {
+      const response = proxy(request(url, host));
+      expect(response.headers.get("x-middleware-rewrite")).toBe(expected);
+    }
+    // The mounted form is not a second public URL for them.
+    for (const [path, expected] of [
+      ["/axiom/encoded/il", "https://axiom.org/encoded/il"],
+      ["/axiom/search?q=credit", "https://axiom.org/search?q=credit"],
+    ] as const) {
       const response = proxy(request(`https://axiom.org${path}`, "axiom.org"));
-      expect(response.headers.get("x-middleware-next")).toBe("1");
+      expect(response.status).toBe(308);
+      expect(response.headers.get("location")).toBe(expected);
+    }
+  });
+
+  it("normalizes trailing-slash graph aliases to /app with their query", () => {
+    for (const path of ["/graph/", "/graph/?x=1", "/axiom/graph/", "/axiom/graph/?x=1", "/app/", "/app/?x=1"]) {
+      const response = proxy(request(`https://axiom.org${path}`, "axiom.org"));
+      expect(response.status).toBe(308);
+      const query = path.includes("?") ? "?x=1" : "";
+      expect(response.headers.get("location")).toBe(`https://axiom.org/app${query}`);
     }
   });
 

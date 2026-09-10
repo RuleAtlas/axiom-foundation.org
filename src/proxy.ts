@@ -48,18 +48,23 @@ function stripAxiomPrefix(pathname: string): string {
   return pathname.startsWith("/axiom/") ? pathname.slice("/axiom".length) : pathname;
 }
 
-// The app's own routes under its /axiom mount that are not citation
-// paths: they are served at /axiom/<route> on the canonical host.
-const APP_INTERNAL_ROOT_RE = /^\/(?:encoded|search|ops)(?:\/|$)/;
+// The app's own routes that are not citation paths and are public at
+// their bare path on every host -- the encoded-rules index links to
+// /encoded/<citation> -- rewritten to their /axiom mount like citation
+// paths are. /ops is not among them: on the marketing host /ops is the
+// marketing page, so the app's ops dashboard stays at /axiom/ops.
+const APP_BARE_ROUTE_RE = /^\/(?:encoded|search)(?:\/|$)/;
 
 // The one public URL on the canonical host for a path that reached the
-// app under its old host or its /axiom mount: the root and the graph are
-// /app, a mounted citation path is the bare path, an app-internal route
-// keeps its mount, and everything else is itself.
+// app under its old host, its /axiom mount or a trailing-slash alias:
+// the root and the graph are /app, the ops dashboard is /axiom/ops, and
+// everything else -- a citation path, an index link, a marketing page --
+// is the bare path itself.
 function canonicalSitePath(pathname: string): string {
-  const bare = isInternalAxiomPath(pathname) ? stripAxiomPrefix(pathname) : pathname;
+  const trimmed = pathname.replace(/\/+$/, "") || "/";
+  const bare = isInternalAxiomPath(trimmed) ? stripAxiomPrefix(trimmed) : trimmed;
   if (bare === "/" || bare === "/graph" || bare === "/app") return "/app";
-  if (APP_INTERNAL_ROOT_RE.test(bare)) return `/axiom${bare}`;
+  if (bare === "/ops") return "/axiom/ops";
   return bare;
 }
 
@@ -127,11 +132,12 @@ export function proxy(request: NextRequest) {
     if (isBypassPath(pathname)) {
       return NextResponse.next();
     }
-    const target = request.nextUrl.clone();
-    target.protocol = "https:";
-    target.hostname = SITE_HOST;
-    target.port = "";
-    target.pathname = canonicalSitePath(pathname);
+    // A plain URL, not nextUrl.clone(): NextURL keeps a trailing-slash
+    // alias's slash on pathname assignment, which would send /graph/ to
+    // /app/, a URL with no page.
+    const target = new URL(
+      `https://${SITE_HOST}${canonicalSitePath(pathname)}${request.nextUrl.search}`
+    );
     return NextResponse.redirect(target, 308);
   }
 
@@ -154,7 +160,7 @@ export function proxy(request: NextRequest) {
   if (host === SITE_HOST && isInternalAxiomPath(pathname)) {
     const canonical = canonicalSitePath(pathname);
     if (canonical !== pathname) {
-      const target = request.nextUrl.clone();
+      const target = new URL(request.url);
       target.pathname = canonical;
       return NextResponse.redirect(target, 308);
     }
@@ -170,9 +176,11 @@ export function proxy(request: NextRequest) {
   }
 
   // /app is the Plane's canonical path on every host; /graph was its
-  // old name and redirects.
-  if (pathname === "/graph") {
-    const target = request.nextUrl.clone();
+  // old name, and the trailing-slash forms (the site disables Next's
+  // own slash redirect) are aliases, all redirecting with their query.
+  const slashless = pathname.replace(/\/+$/, "") || "/";
+  if (slashless === "/graph" || (slashless === "/app" && pathname !== "/app")) {
+    const target = new URL(request.url);
     target.pathname = "/app";
     return NextResponse.redirect(target, 308);
   }
@@ -190,6 +198,14 @@ export function proxy(request: NextRequest) {
   if (APP_ROOT_PREFIX_RE.test(pathname)) {
     const target = request.nextUrl.clone();
     target.pathname = appPagePath(pathname);
+    return NextResponse.rewrite(target);
+  }
+
+  // The app's bare public routes (the encoded-rules index and search)
+  // resolve on every host the same way, at their /axiom mount.
+  if (APP_BARE_ROUTE_RE.test(pathname)) {
+    const target = request.nextUrl.clone();
+    target.pathname = `/axiom${pathname}`;
     return NextResponse.rewrite(target);
   }
 

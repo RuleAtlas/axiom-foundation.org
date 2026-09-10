@@ -45,7 +45,7 @@ const SOCIALS = [
 
 export function Footer({
   baseUrl = "",
-  appUrl = "https://app.axiom-foundation.org",
+  appUrl = "https://axiom.org/app",
   renderLink: LinkComponent,
   logoSrc,
   updatesUrl = "mailto:hello@axiom.org?subject=Axiom%20updates",
